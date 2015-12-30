@@ -3,11 +3,14 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	id="org.apache.cordova.plugin.ActivityIndicator"
 	version="1.0.0">
-
+	
+	<!--
 	<engines>
 		<engine name="cordova" version=">=3.0.0" />
 	</engines>
-
+	-->
+	
+	
 	<name>Activity Indicator</name>
 	<description>Activity Indicator plugin for Cordova 3.X that allows you to show a loading spinner in your Cordova's app.</description>
 	<author>Rafael Agostini</author>
