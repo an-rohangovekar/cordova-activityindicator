@@ -6,8 +6,11 @@
 
 #import "MBProgressHUD.h"
 
+	#define MB_AUTORELEASE(exp) exp
+	#define MB_RELEASE(exp) exp
+	#define MB_RETAIN(exp) exp
 
-#if __has_feature(objc_arc)
+/*#if __has_feature(objc_arc)
 	#define MB_AUTORELEASE(exp) exp
 	#define MB_RELEASE(exp) exp
 	#define MB_RETAIN(exp) exp
@@ -15,29 +18,35 @@
 	#define MB_AUTORELEASE(exp) [exp autorelease]
 	#define MB_RELEASE(exp) [exp release]
 	#define MB_RETAIN(exp) [exp retain]
-#endif
+#endif*/
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
+#define MBLabelAlignmentCenter NSTextAlignmentCenter
+/*#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000
     #define MBLabelAlignmentCenter NSTextAlignmentCenter
 #else
     #define MBLabelAlignmentCenter UITextAlignmentCenter
-#endif
+#endif*/
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text \
+	sizeWithAttributes:@{NSFontAttributeName:font}] : CGSizeZero;
+/*#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
 	#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text \
 		sizeWithAttributes:@{NSFontAttributeName:font}] : CGSizeZero;
 #else
 	#define MB_TEXTSIZE(text, font) [text length] > 0 ? [text sizeWithFont:font] : CGSizeZero;
-#endif
+#endif*/
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
+#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
+	boundingRectWithSize:maxSize options:(NSStringDrawingUsesLineFragmentOrigin) \
+	attributes:@{NSFontAttributeName:font} context:nil].size : CGSizeZero;
+/*#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000
 	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
 		boundingRectWithSize:maxSize options:(NSStringDrawingUsesLineFragmentOrigin) \
 		attributes:@{NSFontAttributeName:font} context:nil].size : CGSizeZero;
 #else
 	#define MB_MULTILINE_TEXTSIZE(text, font, maxSize, mode) [text length] > 0 ? [text \
 		sizeWithFont:font constrainedToSize:maxSize lineBreakMode:mode] : CGSizeZero;
-#endif
+#endif*/
 
 
 static const CGFloat kPadding = 4.f;
@@ -116,9 +125,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @synthesize detailsLabelText;
 @synthesize progress;
 @synthesize size;
-#if NS_BLOCKS_AVAILABLE
 @synthesize completionBlock;
-#endif
+/*#if NS_BLOCKS_AVAILABLE
+@synthesize completionBlock;
+#endif*/
 
 #pragma mark - Class methods
 
@@ -227,7 +237,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 - (void)dealloc {
 	[self unregisterFromNotifications];
 	[self unregisterFromKVO];
-#if !__has_feature(objc_arc)
+	
+	[completionBlock release];
+	[super dealloc];
+/*#if !__has_feature(objc_arc)
 	[color release];
 	[indicator release];
 	[label release];
@@ -242,7 +255,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[completionBlock release];
 #endif
 	[super dealloc];
-#endif
+#endif*/
 }
 
 #pragma mark - Show & hide
@@ -367,12 +380,16 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	if (removeFromSuperViewOnHide) {
 		[self removeFromSuperview];
 	}
-#if NS_BLOCKS_AVAILABLE
 	if (self.completionBlock) {
 		self.completionBlock();
 		self.completionBlock = NULL;
 	}
-#endif
+/*#if NS_BLOCKS_AVAILABLE
+	if (self.completionBlock) {
+		self.completionBlock();
+		self.completionBlock = NULL;
+	}
+#endif*/
 	if ([delegate respondsToSelector:@selector(hudWasHidden:)]) {
 		[delegate performSelector:@selector(hudWasHidden:) withObject:self];
 	}
@@ -391,7 +408,35 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[self show:animated];
 }
 
-#if NS_BLOCKS_AVAILABLE
+(void)showAnimated:(BOOL)animated whileExecutingBlock:(dispatch_block_t)block {
+	dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	[self showAnimated:animated whileExecutingBlock:block onQueue:queue completionBlock:NULL];
+}
+
+- (void)showAnimated:(BOOL)animated whileExecutingBlock:(dispatch_block_t)block completionBlock:(void (^)())completion {
+	dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	[self showAnimated:animated whileExecutingBlock:block onQueue:queue completionBlock:completion];
+}
+
+- (void)showAnimated:(BOOL)animated whileExecutingBlock:(dispatch_block_t)block onQueue:(dispatch_queue_t)queue {
+	[self showAnimated:animated whileExecutingBlock:block onQueue:queue	completionBlock:NULL];
+}
+
+- (void)showAnimated:(BOOL)animated whileExecutingBlock:(dispatch_block_t)block onQueue:(dispatch_queue_t)queue
+	 completionBlock:(MBProgressHUDCompletionBlock)completion {
+	self.taskInProgress = YES;
+	self.completionBlock = completion;
+	dispatch_async(queue, ^(void) {
+        block();
+        dispatch_async(dispatch_get_main_queue(), ^(void) {
+            [self cleanUp];
+        });
+    });
+  [self show:animated];
+}
+
+
+/*#if NS_BLOCKS_AVAILABLE
 
 - (void)showAnimated:(BOOL)animated whileExecutingBlock:(dispatch_block_t)block {
 	dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -420,7 +465,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
   [self show:animated];
 }
 
-#endif
+#endif*/
 
 - (void)launchExecution {
 	@autoreleasepool {
@@ -437,13 +482,15 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (void)cleanUp {
 	taskInProgress = NO;
-#if !__has_feature(objc_arc)
+	targetForExecution = nil;
+	objectForExecution = nil;
+/*#if !__has_feature(objc_arc)
 	[targetForExecution release];
 	[objectForExecution release];
 #else
 	targetForExecution = nil;
 	objectForExecution = nil;
-#endif
+#endif*/
 	[self hide:useAnimation];
 }
 
@@ -785,11 +832,11 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (void)dealloc {
 	[self unregisterFromKVO];
-#if !__has_feature(objc_arc)
+/*#if !__has_feature(objc_arc)
 	[_progressTintColor release];
 	[_backgroundTintColor release];
 	[super dealloc];
-#endif
+#endif*/
 }
 
 #pragma mark - Drawing
@@ -890,12 +937,12 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (void)dealloc {
 	[self unregisterFromKVO];
-#if !__has_feature(objc_arc)
+/*#if !__has_feature(objc_arc)
 	[_lineColor release];
 	[_progressColor release];
 	[_progressRemainingColor release];
 	[super dealloc];
-#endif
+#endif*/
 }
 
 #pragma mark - Drawing
